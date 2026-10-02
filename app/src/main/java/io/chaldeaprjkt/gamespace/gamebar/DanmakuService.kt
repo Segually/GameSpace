@@ -22,15 +22,12 @@ package io.chaldeaprjkt.gamespace.gamebar
 
 import android.animation.ValueAnimator
 import android.app.Notification
-import android.content.ComponentName
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
-import android.os.RemoteException
-import android.os.UserHandle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -65,8 +62,6 @@ class DanmakuService @Inject constructor(
     private val appSettings: AppSettings
 ) : DanmakuServiceInterface {
 
-    private lateinit var notificationListener: DanmakuServiceListener
-
     private val notificationOverlay = TextView(context).apply {
         gravity = Gravity.CENTER
         maxLines = 2
@@ -86,7 +81,7 @@ class DanmakuService @Inject constructor(
         flags = flags or LayoutParams.FLAG_NOT_FOCUSABLE or
                 LayoutParams.FLAG_NOT_TOUCHABLE or
                 LayoutParams.FLAG_HARDWARE_ACCELERATED
-        type = LayoutParams.TYPE_SECURE_SYSTEM_OVERLAY
+        type = LayoutParams.TYPE_APPLICATION_OVERLAY
         format = PixelFormat.TRANSLUCENT
         gravity = Gravity.TOP
     }
@@ -101,8 +96,6 @@ class DanmakuService @Inject constructor(
     private var overlayPositionAnimator: ValueAnimator? = null
 
     fun init() {
-        notificationListener = DanmakuServiceListener()
-        notificationListener.danmakuServiceInterface = this
         updateParams()
         registerListener()
     }
@@ -123,24 +116,11 @@ class DanmakuService @Inject constructor(
     }
 
     private fun registerListener() {
-        val componentName = ComponentName(context, DanmakuService::class.java)
-        try {
-            notificationListener.registerAsSystemService(
-                context,
-                componentName,
-                UserHandle.USER_CURRENT
-            )
-        } catch (e: RemoteException) {
-            Log.e(TAG, "RemoteException while registering danmaku service")
-        }
+        DanmakuServiceListener.sink = this
     }
 
     private fun unregisterListener() {
-        try {
-            notificationListener.unregisterAsSystemService()
-        } catch (e: RemoteException) {
-            Log.e(TAG, "RemoteException while registering danmaku service")
-        }
+        if (DanmakuServiceListener.sink === this) DanmakuServiceListener.sink = null
     }
 
     private fun updateParams() {

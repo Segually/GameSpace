@@ -1,7 +1,5 @@
 /*
  * Copyright (C) 2021 Chaldeaprjkt
- *               2022 crDroid Android Project
- *               2025 AxionOS
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,21 +16,19 @@
 package io.chaldeaprjkt.gamespace.utils
 
 import android.content.Context
-import android.net.Uri
-import android.os.Handler
-import android.os.Looper
-import android.view.WindowManager
-import com.android.internal.util.ScreenshotHelper
+import android.view.KeyEvent
+import io.chaldeaprjkt.gamespace.platform.PlatformClient
+import io.chaldeaprjkt.gamespace.root.RootShell
 import javax.inject.Inject
 
 class ScreenUtils @Inject constructor(private val context: Context) {
 
-    private val handler = Handler(Looper.getMainLooper())
-
-    fun takeScreenshot(onComplete: ((Uri?) -> Unit)? = null) {
-        ScreenshotHelper(context).takeScreenshot(
-            WindowManager.TAKE_SCREENSHOT_FULLSCREEN,
-            WindowManager.ScreenshotSource.SCREENSHOT_GLOBAL_ACTIONS, handler
-        ) { handler.post { onComplete?.invoke(it) } }
+    /**
+     * Take a full screenshot through SystemUI (via the SystemUI hook), or by
+     * injecting KEYCODE_SYSRQ as root when the hook is unavailable.
+     */
+    fun takeScreenshot() {
+        if (PlatformClient.getInstance().takeScreenshot()) return
+        RootShell.runAsync("input keyevent ${KeyEvent.KEYCODE_SYSRQ}")
     }
 }

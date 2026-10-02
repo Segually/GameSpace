@@ -33,7 +33,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
-import com.android.axion.compose.lifecycle.repeatWhenAttached
+import io.chaldeaprjkt.gamespace.utils.repeatWhenAttached
 import com.google.gson.Gson
 
 data class KeyCaptureEvent(val pointId: Int, val keyCode: Int)

@@ -25,7 +25,7 @@ import android.view.View
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
 
-import com.android.settingslib.widget.SettingsBasePreferenceFragment
+import androidx.preference.PreferenceFragmentCompat
 
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -38,7 +38,7 @@ import kotlinx.coroutines.withContext
 
 import javax.inject.Inject
 
-@AndroidEntryPoint(SettingsBasePreferenceFragment::class)
+@AndroidEntryPoint(PreferenceFragmentCompat::class)
 class AppSelectorFragment : Hilt_AppSelectorFragment() {
 
     @Inject

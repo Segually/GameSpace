@@ -19,7 +19,6 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.os.SystemProperties
 import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.runtime.Composable
@@ -29,7 +28,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import com.android.axion.platform.AxPlatformClient
+import io.chaldeaprjkt.gamespace.platform.PlatformClient
 import io.chaldeaprjkt.gamespace.R
 import io.chaldeaprjkt.gamespace.data.AppSettings
 import io.chaldeaprjkt.gamespace.data.SystemSettings
@@ -75,7 +74,7 @@ class PlatformTile(
     override val id: String,
     override val icon: Int,
     private val feature: String,
-    private val platform: AxPlatformClient,
+    private val platform: PlatformClient,
 ) : TileAction {
     val activeState = mutableStateOf(false)
     val labelState = mutableStateOf("")
@@ -90,7 +89,7 @@ class PlatformTile(
 
     fun updateFromState(state: Bundle) {
         activeState.value = state.getBoolean("active", false)
-        val newLabel = AxPlatformClient.getLabel(state)
+        val newLabel = PlatformClient.getLabel(state)
         if (!newLabel.isNullOrBlank()) labelState.value = newLabel
     }
 }
@@ -101,12 +100,12 @@ class TileRepository @Inject constructor(
     private val appSettings: AppSettings,
     private val systemSettings: SystemSettings,
 ) {
-    private lateinit var platform: AxPlatformClient
+    private lateinit var platform: PlatformClient
 
     private lateinit var defaultTiles: List<TileAction>
     private val platformTiles = mutableListOf<PlatformTile>()
 
-    private val platformListener = object : AxPlatformClient.Listener() {
+    private val platformListener = object : PlatformClient.Listener() {
         override fun onFeatureChanged(feature: String, active: Boolean) {
             platformTiles.find { it.id == feature }?.activeState?.value = active
         }
@@ -114,19 +113,27 @@ class TileRepository @Inject constructor(
         override fun onStateChanged(key: String, state: Bundle) {
             platformTiles.find { it.id == key }?.updateFromState(state)
         }
+
+        override fun onSupportedFeaturesChanged(features: Set<String>) {
+            applyTileOrder()
+        }
     }
 
     private val _tileOrder = mutableStateListOf<String>()
 
+    /** Platform tiles are hidden when the SystemUI bridge reports no matching QS tile. */
+    private fun TileAction.isAvailable() =
+        this !is PlatformTile || !platform.isConnected || platform.isSupported(id)
+
     val allAvailableTiles: List<TileAction>
-        get() = defaultTiles
+        get() = defaultTiles.filter { it.isAvailable() }
 
     private val _tiles = mutableStateListOf<TileAction>()
     val tiles: SnapshotStateList<TileAction> get() = _tiles
 
     val isBrightnessVisible: MutableState<Boolean> = mutableStateOf(appSettings.brightnessEnabled)
     val isFpsGraphVisible: MutableState<Boolean> = mutableStateOf(appSettings.fpsGraphEnabled)
-    fun init(platform: AxPlatformClient) {
+    fun init(platform: PlatformClient) {
         this.platform = platform
 
         defaultTiles = buildDefaultTiles()
@@ -137,10 +144,15 @@ class TileRepository @Inject constructor(
 
         _tileOrder.clear()
         _tileOrder.addAll(loadTileOrder())
+        applyTileOrder()
+    }
+
+    private fun applyTileOrder() {
+        if (!::defaultTiles.isInitialized) return
         _tiles.clear()
         _tiles.addAll(
             _tileOrder.mapNotNull { id ->
-                defaultTiles.find { it.id == id }
+                defaultTiles.find { it.id == id }?.takeIf { it.isAvailable() }
             }
         )
     }
@@ -195,13 +207,10 @@ class TileRepository @Inject constructor(
     }
 
     fun updateTileSelection(selectedIds: List<String>) {
-        _tiles.clear()
-        _tiles.addAll(selectedIds.mapNotNull { id ->
-            defaultTiles.find { it.id == id }
-        })
         _tileOrder.clear()
         _tileOrder.addAll(selectedIds)
         saveTileOrder()
+        applyTileOrder()
     }
 
     private fun platformTile(feature: String, iconRes: Int, fallbackLabel: String): PlatformTile {
@@ -220,177 +229,177 @@ class TileRepository @Inject constructor(
         platformTiles.clear()
 
         add(platformTile(
-            AxPlatformClient.FEATURE_WIFI,
+            PlatformClient.FEATURE_WIFI,
             R.drawable.materialsymbols_ic_wifi_rounded_filled,
             context.getString(R.string.tile_wifi),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_BLUETOOTH,
+            PlatformClient.FEATURE_BLUETOOTH,
             R.drawable.materialsymbols_ic_bluetooth_rounded_filled,
             context.getString(R.string.tile_bluetooth),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_ZEN,
+            PlatformClient.FEATURE_ZEN,
             R.drawable.materialsymbols_ic_do_not_disturb_on_rounded_filled,
             context.getString(R.string.tile_dnd),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_ROTATION,
+            PlatformClient.FEATURE_ROTATION,
             R.drawable.materialsymbols_ic_screen_rotation_up_rounded_filled,
             context.getString(R.string.tile_auto_rotate),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_MOBILE_DATA,
+            PlatformClient.FEATURE_MOBILE_DATA,
             R.drawable.materialsymbols_ic_android_cell_4_bar_rounded_filled,
             context.getString(R.string.tile_mobile_data),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_AIRPLANE_MODE,
+            PlatformClient.FEATURE_AIRPLANE_MODE,
             R.drawable.materialsymbols_ic_flight_rounded_filled,
             context.getString(R.string.tile_airplane_mode),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_FLASHLIGHT,
+            PlatformClient.FEATURE_FLASHLIGHT,
             R.drawable.materialsymbols_ic_flashlight_on_rounded_filled,
             context.getString(R.string.tile_flashlight),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_DARK_MODE,
+            PlatformClient.FEATURE_DARK_MODE,
             R.drawable.materialsymbols_ic_dark_mode_rounded_filled,
             context.getString(R.string.tile_dark_mode),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_LOCATION,
+            PlatformClient.FEATURE_LOCATION,
             R.drawable.materialsymbols_ic_location_on_rounded_filled,
             context.getString(R.string.tile_location),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_BATTERY_SAVER,
+            PlatformClient.FEATURE_BATTERY_SAVER,
             R.drawable.materialsymbols_ic_battery_saver_rounded_filled,
             context.getString(R.string.tile_battery_saver),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_HOTSPOT,
+            PlatformClient.FEATURE_HOTSPOT,
             R.drawable.materialsymbols_ic_wifi_tethering_rounded_filled,
             context.getString(R.string.tile_hotspot),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_NFC,
+            PlatformClient.FEATURE_NFC,
             R.drawable.materialsymbols_ic_nfc_rounded_filled,
             context.getString(R.string.tile_nfc),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_NIGHT_LIGHT,
+            PlatformClient.FEATURE_NIGHT_LIGHT,
             R.drawable.materialsymbols_ic_nights_stay_rounded_filled,
             context.getString(R.string.tile_night_light),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_AOD,
+            PlatformClient.FEATURE_AOD,
             R.drawable.materialsymbols_ic_aod_rounded_filled,
             context.getString(R.string.tile_aod),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_DATA_SAVER,
+            PlatformClient.FEATURE_DATA_SAVER,
             R.drawable.materialsymbols_ic_data_saver_on_rounded_filled,
             context.getString(R.string.tile_data_saver),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_COLOR_INVERSION,
+            PlatformClient.FEATURE_COLOR_INVERSION,
             R.drawable.materialsymbols_ic_invert_colors_rounded_filled,
             context.getString(R.string.tile_color_inversion),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_COLOR_CORRECTION,
+            PlatformClient.FEATURE_COLOR_CORRECTION,
             R.drawable.materialsymbols_ic_palette_rounded_filled,
             context.getString(R.string.tile_color_correction),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_REDUCE_BRIGHTNESS,
+            PlatformClient.FEATURE_REDUCE_BRIGHTNESS,
             R.drawable.materialsymbols_ic_brightness_low_rounded_filled,
             context.getString(R.string.tile_reduce_brightness),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_ONE_HANDED_MODE,
+            PlatformClient.FEATURE_ONE_HANDED_MODE,
             R.drawable.materialsymbols_ic_phone_android_rounded_filled,
             context.getString(R.string.tile_one_handed),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_HEADS_UP,
+            PlatformClient.FEATURE_HEADS_UP,
             R.drawable.materialsymbols_ic_notifications_active_rounded_filled,
             context.getString(R.string.tile_heads_up),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_AUTO_SYNC,
+            PlatformClient.FEATURE_AUTO_SYNC,
             R.drawable.materialsymbols_ic_sync_rounded_filled,
             context.getString(R.string.tile_auto_sync),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_CAMERA_PRIVACY,
+            PlatformClient.FEATURE_CAMERA_PRIVACY,
             R.drawable.materialsymbols_ic_photo_camera_rounded_filled,
             context.getString(R.string.tile_camera_privacy),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_MIC_PRIVACY,
+            PlatformClient.FEATURE_MIC_PRIVACY,
             R.drawable.materialsymbols_ic_mic_rounded_filled,
             context.getString(R.string.tile_mic_privacy),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_WORK_PROFILE,
+            PlatformClient.FEATURE_WORK_PROFILE,
             R.drawable.materialsymbols_ic_work_rounded_filled,
             context.getString(R.string.tile_work_profile),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_USB_TETHER,
+            PlatformClient.FEATURE_USB_TETHER,
             R.drawable.materialsymbols_ic_usb_rounded_filled,
             context.getString(R.string.tile_usb_tether),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_DREAM,
+            PlatformClient.FEATURE_DREAM,
             R.drawable.materialsymbols_ic_bedtime_rounded_filled,
             context.getString(R.string.tile_dream),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_READING_MODE,
+            PlatformClient.FEATURE_READING_MODE,
             R.drawable.materialsymbols_ic_menu_book_rounded_filled,
             context.getString(R.string.tile_reading_mode),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_POWER_SHARE,
+            PlatformClient.FEATURE_POWER_SHARE,
             R.drawable.materialsymbols_ic_battery_charging_full_rounded_filled,
             context.getString(R.string.tile_power_share),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_CAFFEINE,
+            PlatformClient.FEATURE_CAFFEINE,
             R.drawable.materialsymbols_ic_local_cafe_rounded_filled,
             context.getString(R.string.tile_caffeine),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_VPN,
+            PlatformClient.FEATURE_VPN,
             R.drawable.materialsymbols_ic_vpn_key_rounded_filled,
             context.getString(R.string.tile_vpn),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_CAST,
+            PlatformClient.FEATURE_CAST,
             R.drawable.materialsymbols_ic_cast_rounded_filled,
             context.getString(R.string.tile_cast),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_PROFILES,
+            PlatformClient.FEATURE_PROFILES,
             R.drawable.materialsymbols_ic_manage_accounts_rounded_filled,
             context.getString(R.string.tile_profiles),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_SMART_PIXELS,
+            PlatformClient.FEATURE_SMART_PIXELS,
             R.drawable.materialsymbols_ic_grid_on_rounded_filled,
             context.getString(R.string.tile_smart_pixels),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_SCREEN_RECORD,
+            PlatformClient.FEATURE_SCREEN_RECORD,
             R.drawable.materialsymbols_ic_videocam_rounded_filled,
             context.getString(R.string.tile_screen_record),
         ))
         add(platformTile(
-            AxPlatformClient.FEATURE_SCREENSHOT,
+            PlatformClient.FEATURE_SCREENSHOT,
             R.drawable.materialsymbols_ic_screenshot_rounded_filled,
             context.getString(R.string.tile_screenshot),
         ))
@@ -455,24 +464,5 @@ class TileRepository @Inject constructor(
                 }
             )
         )
-
-        if (SystemProperties.getBoolean("persist.sys.ax_touch_boost", false)) {
-            val touchBoostState = mutableStateOf(
-                SystemProperties.getInt("persist.sys.touchboost_enable", 0) == 1
-            )
-            add(
-                ToggleableTile(
-                    id = "touch_boost",
-                    label = context.getString(R.string.tile_touch_boost),
-                    icon = R.drawable.materialsymbols_ic_touch_app_rounded_filled,
-                    state = touchBoostState,
-                    setter = {
-                        val newVal = if (it) 1 else 0
-                        SystemProperties.set("persist.sys.touchboost_enable", "$newVal")
-                        touchBoostState.value = it
-                    }
-                )
-            )
-        }
     }
 }

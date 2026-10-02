@@ -18,22 +18,17 @@
 package io.chaldeaprjkt.gamespace.settings
 
 import android.os.Bundle
-import com.android.settingslib.collapsingtoolbar.CollapsingToolbarBaseActivity
 import dagger.hilt.android.AndroidEntryPoint
 
-@AndroidEntryPoint(CollapsingToolbarBaseActivity::class)
+@AndroidEntryPoint(BaseSettingsActivity::class)
 class SettingsActivity : Hilt_SettingsActivity() {
+
+    override val showUpButton = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
-            supportFragmentManager
-                .beginTransaction()
-                .replace(
-                    com.android.settingslib.collapsingtoolbar.R.id.content_frame,
-                    SettingsFragment()
-                )
-                .commit()
+            showFragment(SettingsFragment())
         }
     }
 }

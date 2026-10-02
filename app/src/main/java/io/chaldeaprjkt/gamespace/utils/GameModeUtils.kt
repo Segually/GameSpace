@@ -15,16 +15,16 @@
  */
 package io.chaldeaprjkt.gamespace.utils
 
-import android.app.GameManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
-import android.os.IDeviceIdleController
-import android.os.RemoteException
-import android.os.ServiceManager
 import android.provider.Settings
+import android.app.GameManager
 import io.chaldeaprjkt.gamespace.R
+import io.chaldeaprjkt.gamespace.bridge.BridgeContract
+import io.chaldeaprjkt.gamespace.bridge.Bridges
+import io.chaldeaprjkt.gamespace.root.RootShell
 import io.chaldeaprjkt.gamespace.data.GameConfig
 import io.chaldeaprjkt.gamespace.data.GameConfig.Companion.asConfig
 import io.chaldeaprjkt.gamespace.data.SystemSettings
@@ -33,32 +33,52 @@ import javax.inject.Inject
 
 class GameModeUtils @Inject constructor(private val context: Context) {
 
-    private var manager: GameManager? = null
     var activeGame: UserGame? = null
 
-    fun bind(manager: GameManager) {
-        this.manager = manager
-    }
-
-    fun unbind() {
-        manager = null
-    }
-
+    /**
+     * Publish per-mode interventions (downscale/fps) for [packageName] through the
+     * stock `game_overlay` DeviceConfig namespace that GameManagerService reads,
+     * e.g. `mode=2,downscaleFactor=0.7:mode=3,downscaleFactor=0.8`.
+     */
     fun setIntervention(packageName: String, modeData: List<GameConfig>? = null) {
-        // Separate key and value by ;; to identify them from
-        // com.android.server.app.GameManagerService for the device_config property.
-        // Example: com.libremobileos.game;;mode=2,downscaleFactor=0.7:mode=3,downscaleFactor=0.8
-        val configValue = "${packageName};;${modeData?.asConfig()}"
-        Settings.Secure.putString(
-                context.contentResolver,
-                "game_overlay",
-                configValue
-        )
+        val config = modeData?.asConfig()
+        if (Bridges.isSystemConnected) {
+            Bridges.withSystem(Unit) { it.setGameIntervention(packageName, config) }
+            return
+        }
+        val pkg = RootShell.quote(packageName)
+        if (config == null) {
+            RootShell.runAsync("device_config delete game_overlay $pkg")
+        } else {
+            RootShell.runAsync("device_config put game_overlay $pkg ${RootShell.quote(config)}")
+        }
     }
+
+    fun applyGameMode(packageName: String, mode: Int) {
+        if (Bridges.isSystemConnected) {
+            Bridges.withSystem(Unit) { it.setGameMode(packageName, mode) }
+            return
+        }
+        val name = when (mode) {
+            GameManager.GAME_MODE_PERFORMANCE -> "performance"
+            GameManager.GAME_MODE_BATTERY -> "battery"
+            GameManager.GAME_MODE_CUSTOM -> "custom"
+            else -> "standard"
+        }
+        RootShell.runAsync("cmd game mode $name ${RootShell.quote(packageName)}")
+    }
+
+    fun getAvailableGameModes(packageName: String): IntArray =
+        Bridges.withSystem(null) { it.getAvailableGameModes(packageName) }
+            ?: intArrayOf(
+                GameManager.GAME_MODE_STANDARD,
+                GameManager.GAME_MODE_PERFORMANCE,
+                GameManager.GAME_MODE_BATTERY,
+            )
 
     fun setActiveGameMode(systemSettings: SystemSettings, mode: Int) {
         val packageName = activeGame?.packageName ?: return
-        manager?.setGameMode(packageName, mode)
+        applyGameMode(packageName, mode)
         activeGame = setGameModeFor(packageName, systemSettings, mode)
     }
 
@@ -72,20 +92,13 @@ class GameModeUtils @Inject constructor(private val context: Context) {
         return data
     }
 
+    /**
+     * Keep GameSpace on the doze whitelist while games are registered, so the
+     * session service can be started from the background when a game launches.
+     */
     fun setupBatteryMode(enable: Boolean) {
-        val svc = IDeviceIdleController.Stub.asInterface(
-            ServiceManager.getService(Context.DEVICE_IDLE_CONTROLLER)
-        )
-        try {
-            val isListed = svc?.isPowerSaveWhitelistApp(context.packageName) ?: false
-            if (enable && !isListed) {
-                svc?.addPowerSaveWhitelistApp(context.packageName)
-            } else if (!enable && isListed) {
-                svc?.removePowerSaveWhitelistApp(context.packageName)
-            }
-        } catch (e: RemoteException) {
-            e.printStackTrace()
-        }
+        val op = if (enable) "+" else "-"
+        RootShell.runAsync("dumpsys deviceidle whitelist $op${context.packageName}")
     }
 
 
@@ -133,11 +146,11 @@ class GameModeUtils @Inject constructor(private val context: Context) {
             }
         }
 
-        Settings.Global.putString(
-            resolver, DRIVER_SELECTION_PACKAGES, pkgs.joinToString(",")
+        Bridges.putSetting(
+            BridgeContract.TABLE_GLOBAL, DRIVER_SELECTION_PACKAGES, pkgs.joinToString(",")
         )
-        Settings.Global.putString(
-            resolver, DRIVER_SELECTION_VALUES, vals.joinToString(",")
+        Bridges.putSetting(
+            BridgeContract.TABLE_GLOBAL, DRIVER_SELECTION_VALUES, vals.joinToString(",")
         )
     }
 

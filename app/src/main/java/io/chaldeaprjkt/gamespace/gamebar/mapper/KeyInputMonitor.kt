@@ -32,7 +32,9 @@ class KeyInputMonitor(
 
     fun start() {
         if (monitor != null) return
-        val mon = inputManager.monitorGestureInput(MONITOR_NAME, Display.DEFAULT_DISPLAY)
+        val mon = InputManager::class.java
+            .getMethod("monitorGestureInput", String::class.java, Int::class.javaPrimitiveType)
+            .invoke(inputManager, MONITOR_NAME, Display.DEFAULT_DISPLAY) as InputMonitor
         monitor = mon
 
         receiver = object : InputEventReceiver(mon.inputChannel, Looper.getMainLooper()) {

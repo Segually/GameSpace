@@ -18,20 +18,26 @@
 package io.chaldeaprjkt.gamespace.gamebar
 
 import android.annotation.SuppressLint
-import android.app.GameManager
+import android.app.Notification
+import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.content.res.Configuration
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import android.view.WindowManager
-import com.android.axion.platform.AxPlatformClient
+import io.chaldeaprjkt.gamespace.platform.PlatformClient
 import dagger.hilt.android.AndroidEntryPoint
 import com.google.gson.Gson
+import io.chaldeaprjkt.gamespace.R
+import io.chaldeaprjkt.gamespace.bridge.BridgeContract
+import io.chaldeaprjkt.gamespace.bridge.Bridges
 import io.chaldeaprjkt.gamespace.data.AppSettings
 import io.chaldeaprjkt.gamespace.data.GameSession
 import io.chaldeaprjkt.gamespace.data.SystemSettings
@@ -39,6 +45,7 @@ import io.chaldeaprjkt.gamespace.gamebar.brightness.BrightnessInteractor
 import io.chaldeaprjkt.gamespace.gamebar.fps.FpsInteractor
 import io.chaldeaprjkt.gamespace.gamebar.mapper.MapperController
 import io.chaldeaprjkt.gamespace.gamebar.tiles.TileRepository
+import io.chaldeaprjkt.gamespace.settings.SettingsActivity
 import io.chaldeaprjkt.gamespace.utils.GameModeUtils
 import io.chaldeaprjkt.gamespace.utils.ScreenUtils
 import javax.inject.Inject
@@ -58,10 +65,9 @@ class SessionService : Hilt_SessionService() {
     @Inject lateinit var gson: Gson
 
     private var currentPackage: String? = null
-    private lateinit var gameManager: GameManager
     private lateinit var sidebar: GameSidebar
     private lateinit var mapperController: MapperController
-    private lateinit var platform: AxPlatformClient
+    private lateinit var platform: PlatformClient
 
     private var dndEnabledByUs = false
     private var previousDndFilter = NotificationManager.INTERRUPTION_FILTER_ALL
@@ -71,11 +77,8 @@ class SessionService : Hilt_SessionService() {
         super.onCreate()
         Log.d(TAG, "SessionService created")
 
-        platform = AxPlatformClient.getInstance()
+        platform = PlatformClient.getInstance()
         platform.init(this)
-
-        gameManager = getSystemService(Context.GAME_SERVICE) as GameManager
-        gameModeUtils.bind(gameManager)
 
         tileRepository.init(platform)
 
@@ -108,6 +111,16 @@ class SessionService : Hilt_SessionService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Every startForegroundService() needs its own startForeground().
+        startSessionForeground()
+
+        // system_server hands its bridge over with the start intent so game mode
+        // and FPS work before the provider handshake completes.
+        intent?.getBundleExtra(BridgeContract.EXTRA_SYSTEM_BRIDGE)
+            ?.getBinder(BridgeContract.KEY_BINDER)
+            ?.let { Bridges.attachSystem(it) }
+        Bridges.request(this)
+
         if (intent?.action == ACTION_START) {
             val packageName = intent.getStringExtra(EXTRA_PACKAGE_NAME)
             if (packageName != null) {
@@ -186,9 +199,9 @@ class SessionService : Hilt_SessionService() {
         
         gameModeUtils.activeGame = userGame
         
-        val availableModes = gameManager.getAvailableGameModes(app)
+        val availableModes = gameModeUtils.getAvailableGameModes(app)
         if (availableModes.contains(preferred)) {
-            gameManager.setGameMode(app, preferred)
+            gameModeUtils.applyGameMode(app, preferred)
         }
     }
 
@@ -196,16 +209,41 @@ class SessionService : Hilt_SessionService() {
         Log.d(TAG, "SessionService destroyed")
         stopGameSession()
         tileRepository.dispose()
-        gameModeUtils.unbind()
+        platform.release()
         danmakuService.destroy()
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private fun startSessionForeground() {
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.session_channel_name),
+                NotificationManager.IMPORTANCE_MIN
+            ).apply { setShowBadge(false) }
+        )
+        val notification = Notification.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(getString(R.string.session_notification_title))
+            .setOngoing(true)
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    this, 0, Intent(this, SettingsActivity::class.java),
+                    PendingIntent.FLAG_IMMUTABLE
+                )
+            )
+            .build()
+        startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+    }
+
     companion object {
         const val TAG = "SessionService"
-        const val ACTION_START = "game_start"
-        const val EXTRA_PACKAGE_NAME = "package_name"
+        const val ACTION_START = BridgeContract.ACTION_GAME_START
+        const val EXTRA_PACKAGE_NAME = BridgeContract.EXTRA_PACKAGE_NAME
+        private const val CHANNEL_ID = "game_session"
+        private const val NOTIFICATION_ID = 1
     }
 }

@@ -21,8 +21,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.os.UserHandle
-import android.provider.Settings
 import android.util.AttributeSet
 import android.view.View
 import androidx.activity.result.ActivityResult
@@ -74,7 +72,8 @@ class AppListPreferences @JvmOverloads constructor(context: Context, attrs: Attr
             key = KEY_AUTO_GAME_DETECT
             title = context.getString(R.string.auto_game_detect_title)
             summary = context.getString(R.string.auto_game_detect_summary)
-            setDefaultValue(true)
+            isPersistent = false
+            isChecked = systemSettings.autoGameDetect
             setOnPreferenceChangeListener { _, newValue ->
                     systemSettings.autoGameDetect = newValue as Boolean
                 true
@@ -92,24 +91,10 @@ class AppListPreferences @JvmOverloads constructor(context: Context, attrs: Attr
     private fun isGameCategory(packageName: String): Boolean =
         getAppInfo(packageName)?.category == ApplicationInfo.CATEGORY_GAME
 
-    private fun readDeniedList(): MutableSet<String> {
-        val raw = Settings.System.getStringForUser(
-            context.contentResolver, KEY_DENIED_LIST,
-            UserHandle.USER_CURRENT
-        ) ?: return mutableSetOf()
-        return raw.split(';')
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .toMutableSet()
-    }
+    private fun readDeniedList(): MutableSet<String> = systemSettings.deniedGames.toMutableSet()
 
     private fun writeDeniedList(set: Set<String>) {
-        Settings.System.putStringForUser(
-            context.contentResolver,
-            KEY_DENIED_LIST,
-            set.joinToString(";"),
-            UserHandle.USER_CURRENT
-        )
+        systemSettings.deniedGames = set
     }
 
     private fun launchGame(packageName: String) {
@@ -222,7 +207,6 @@ class AppListPreferences @JvmOverloads constructor(context: Context, attrs: Attr
     companion object {
         const val KEY_ADD_GAME = "add_game"
         const val EXTRA_APP = "selected_app"
-        const val KEY_DENIED_LIST = "gamespace_denied_list"
         const val KEY_AUTO_GAME_DETECT = "gamespace_auto_game_detect"
     }
 }

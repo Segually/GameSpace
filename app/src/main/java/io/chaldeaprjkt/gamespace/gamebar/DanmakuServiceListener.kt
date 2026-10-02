@@ -29,7 +29,7 @@ class DanmakuServiceListener : NotificationListenerService() {
 
     private val appLabelsCache = mutableMapOf<String, String?>()
 
-    var danmakuServiceInterface: DanmakuServiceInterface? = null
+    private val danmakuServiceInterface: DanmakuServiceInterface? get() = sink
 
     override fun onListenerConnected() {
         super.onListenerConnected()
@@ -104,5 +104,9 @@ class DanmakuServiceListener : NotificationListenerService() {
 
     companion object {
         private const val NOTIFICATIONS_MAX_CACHED = 99
+
+        /** Set by DanmakuService while a game session is running. */
+        @Volatile
+        var sink: DanmakuServiceInterface? = null
     }
 }

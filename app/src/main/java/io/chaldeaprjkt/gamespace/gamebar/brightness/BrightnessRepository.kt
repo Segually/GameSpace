@@ -18,22 +18,29 @@ package io.chaldeaprjkt.gamespace.gamebar.brightness
 import android.content.ContentResolver
 import android.content.Context
 import android.database.ContentObserver
-import android.hardware.display.BrightnessInfo
-import android.hardware.display.DisplayManager
 import android.provider.Settings
-import android.view.Display
+import io.chaldeaprjkt.gamespace.bridge.BridgeContract
+import io.chaldeaprjkt.gamespace.bridge.Bridges
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import com.android.settingslib.display.BrightnessUtils.*
+import io.chaldeaprjkt.gamespace.utils.BrightnessUtils.GAMMA_SPACE_MAX
+import io.chaldeaprjkt.gamespace.utils.BrightnessUtils.GAMMA_SPACE_MIN
+import io.chaldeaprjkt.gamespace.utils.BrightnessUtils.convertGammaToLinearFloat
+import io.chaldeaprjkt.gamespace.utils.BrightnessUtils.convertLinearToGammaFloat
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/** Linear-space brightness of the default display, as reported by DisplayManager. */
+data class BrightnessInfo(
+    val brightness: Float,
+    val brightnessMinimum: Float,
+    val brightnessMaximum: Float,
+)
 
 @Singleton
 class BrightnessRepository @Inject constructor(private val context: Context) {
 
     private val contentResolver: ContentResolver = context.contentResolver
-    private val displayManager: DisplayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-    private val display: Display? = context.display
 
     private val _brightnessInfo = MutableStateFlow<BrightnessInfo?>(null)
     val brightnessInfo: StateFlow<BrightnessInfo?> = _brightnessInfo
@@ -51,7 +58,9 @@ class BrightnessRepository @Inject constructor(private val context: Context) {
             Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
         ) == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
 
-        _brightnessInfo.value = display?.brightnessInfo
+        _brightnessInfo.value = Bridges.withSystem(null) { it.brightnessInfo }
+            ?.takeIf { it.size == 3 }
+            ?.let { BrightnessInfo(it[0], it[1], it[2]) }
     }
 
     fun setBrightness(percent: Float) {
@@ -63,20 +72,16 @@ class BrightnessRepository @Inject constructor(private val context: Context) {
                 info.brightnessMaximum
             ).coerceIn(0f, 1f)
 
-            display?.displayId?.let { id ->
-                displayManager.setBrightness(id, linear)
-            }
+            Bridges.withSystem(Unit) { it.setBrightness(linear) }
         }
     }
 
     fun setAutoMode(enabled: Boolean) {
-        Settings.System.putInt(
-            contentResolver,
+        Bridges.putSetting(
+            BridgeContract.TABLE_SYSTEM,
             Settings.System.SCREEN_BRIGHTNESS_MODE,
-            if (enabled)
-                Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
-            else
-                Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
+            (if (enabled) Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
+            else Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL).toString()
         )
         refresh()
     }

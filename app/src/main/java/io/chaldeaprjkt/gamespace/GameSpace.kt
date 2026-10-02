@@ -19,6 +19,10 @@ package io.chaldeaprjkt.gamespace
 import android.app.Application
 import android.util.Log
 import dagger.hilt.android.HiltAndroidApp
+import io.chaldeaprjkt.gamespace.bridge.Bridges
+import io.chaldeaprjkt.gamespace.data.AppSettings
+import io.chaldeaprjkt.gamespace.data.BypassCharging
+import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 @HiltAndroidApp(Application::class)
 class GameSpace : Hilt_GameSpace() {
@@ -28,5 +32,10 @@ class GameSpace : Hilt_GameSpace() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Application created")
+        // The mapper and a few overlay helpers still poke @hide framework APIs.
+        HiddenApiBypass.addHiddenApiExemptions("")
+        Bridges.request(this)
+        // If a previous process died mid-session, don't leave charging paused.
+        if (AppSettings(this).bypassCharge) BypassCharging.setActive(false)
     }
 }

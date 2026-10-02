@@ -19,7 +19,6 @@
 package io.chaldeaprjkt.gamespace.gamebar
 
 import android.annotation.SuppressLint
-import android.app.ActivityTaskManager
 import android.content.*
 import android.content.res.Configuration
 import android.graphics.PixelFormat
@@ -27,10 +26,7 @@ import android.graphics.Rect
 import android.os.Bundle
 import android.os.Handler
 import android.os.Process
-import android.os.UserHandle
-import android.provider.Settings
 import android.view.*
-import android.window.TaskFpsCallback
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
@@ -52,10 +48,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.*
-import com.android.axion.compose.lifecycle.repeatWhenAttached
-import com.android.axion.platform.AxPlatformClient
+import io.chaldeaprjkt.gamespace.utils.repeatWhenAttached
+import io.chaldeaprjkt.gamespace.platform.PlatformClient
 import io.chaldeaprjkt.gamespace.BuildFlags
 import io.chaldeaprjkt.gamespace.R
+import io.chaldeaprjkt.gamespace.bridge.Bridges
+import io.chaldeaprjkt.gamespace.bridge.IFpsListener
 import io.chaldeaprjkt.gamespace.data.AppSettings
 import io.chaldeaprjkt.gamespace.data.SystemSettings
 import io.chaldeaprjkt.gamespace.gamebar.brightness.*
@@ -78,7 +76,7 @@ class GameSidebar(
     private val gameModeUtils: GameModeUtils,
     private val settings: SystemSettings,
     private val tileRepository: TileRepository,
-    private val platform: AxPlatformClient,
+    private val platform: PlatformClient,
     private val mapperController: MapperController,
 ) {
     private val gameBarLayoutParam = createGameBarLayoutParam()
@@ -116,9 +114,7 @@ class GameSidebar(
     private var pillExpanded = false
     private val pillExpandedState = mutableStateOf(false)
     private val barTopState = mutableIntStateOf(0)
-    private val taskManager by lazy { ActivityTaskManager.getService() }
-
-    private val taskFpsCallback = object : TaskFpsCallback() {
+    private val taskFpsCallback = object : IFpsListener.Stub() {
         override fun onFpsReported(fps: Float) {
             if (::gameBarView.isInitialized && gameBarView.isAttachedToWindow) {
                 val formatted = DecimalFormat("#").apply {
@@ -129,7 +125,7 @@ class GameSidebar(
         }
     }
 
-    private val recordingListener = object : AxPlatformClient.Listener() {
+    private val recordingListener = object : PlatformClient.Listener() {
         override fun onStateChanged(key: String, state: Bundle) {}
     }
 
@@ -244,12 +240,10 @@ class GameSidebar(
 
     fun setGestureLock(value: Boolean) {
         isLockedState.value = value
-        Settings.Secure.putIntForUser(
-            context.contentResolver,
-            "ax_gaming_gesture_lock",
-            if (value) 1 else 0,
-            UserHandle.USER_CURRENT
-        )
+        // Enforced by the Xposed hooks: system_server blocks edge swipes,
+        // SystemUI blocks the back gesture.
+        Bridges.withSystem(Unit) { it.setGestureLock(value) }
+        Bridges.withPlatform(Unit) { it.setGestureLock(value) }
     }
 
     fun onConfigurationChanged(newConfig: Configuration) {
@@ -282,8 +276,6 @@ class GameSidebar(
 
         try {
             Process.setThreadPriority(Process.THREAD_PRIORITY_DISPLAY)
-            Process.setThreadGroupAndCpuset(Process.myTid(), Process.THREAD_GROUP_SYSTEM)
-            Process.setProcessGroup(Process.myPid(), Process.THREAD_GROUP_SYSTEM)
             wm.addView(pv, panelLayoutParam)
             gameBarView.visibility = View.GONE
         } catch (_: Exception) {
@@ -309,9 +301,7 @@ class GameSidebar(
             panelView = null
         }
         runCatching {
-            Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
-            Process.setThreadGroupAndCpuset(Process.myTid(), Process.THREAD_GROUP_BACKGROUND)
-            Process.setProcessGroup(Process.myPid(), Process.THREAD_GROUP_BACKGROUND)
+            Process.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT)
         }
 
         if (!shouldClose) {
@@ -395,9 +385,10 @@ class GameSidebar(
         val barTopPx = gameBarLayoutParam.y
         val barTopDp = with(density) { barTopPx.toDp() }
         val navBottomDp = with(density) {
-            context.resources.getDimensionPixelSize(
-                com.android.internal.R.dimen.navigation_bar_height
-            ).toDp()
+            context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
+                .takeIf { it != 0 }
+                ?.let { context.resources.getDimensionPixelSize(it) }
+                ?.toDp() ?: 0.dp
         }
         val screenHeightDp = with(density) { safeHeight.toDp() }
         val spaceBelow = (screenHeightDp - barTopDp - navBottomDp - 16.dp).coerceAtLeast(0.dp)
@@ -483,16 +474,14 @@ class GameSidebar(
 
     private fun updateFpsTracking() {
         if (showFpsState.value) {
-            taskManager?.focusedRootTaskInfo?.taskId?.let {
-                wm.registerTaskFpsCallback(it, Runnable::run, taskFpsCallback)
-            }
+            Bridges.withSystem(Unit) { it.registerFpsListener(taskFpsCallback) }
         } else {
             stopFpsTracking()
         }
     }
 
     private fun stopFpsTracking() {
-        runCatching { wm.unregisterTaskFpsCallback(taskFpsCallback) }
+        Bridges.withSystem(Unit) { it.unregisterFpsListener(taskFpsCallback) }
     }
 
     private fun updateScreenMetrics() {

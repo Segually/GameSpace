@@ -10,8 +10,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://jitpack.io")
+        maven("https://api.xposed.info/")
     }
 }
 
 rootProject.name = "GameSpace"
-include (":app")
+include(":app")
+include(":hidden-api")

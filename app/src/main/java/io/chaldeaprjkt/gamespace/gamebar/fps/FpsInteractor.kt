@@ -15,11 +15,10 @@
  */
 package io.chaldeaprjkt.gamespace.gamebar.fps
 
-import android.app.ActivityTaskManager
 import android.content.Context
-import android.hardware.display.DisplayManager
 import android.view.WindowManager
-import android.window.TaskFpsCallback
+import io.chaldeaprjkt.gamespace.bridge.Bridges
+import io.chaldeaprjkt.gamespace.bridge.IFpsListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,7 +32,6 @@ import javax.inject.Singleton
 class FpsInteractor @Inject constructor(private val context: Context) {
 
     private val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val taskManager = ActivityTaskManager.getService()
 
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -52,7 +50,7 @@ class FpsInteractor @Inject constructor(private val context: Context) {
 
     private val fpsFlow = MutableSharedFlow<Float>(extraBufferCapacity = 64)
 
-    private val fpsCallback = object : TaskFpsCallback() {
+    private val fpsCallback = object : IFpsListener.Stub() {
         override fun onFpsReported(fps: Float) {
             fpsFlow.tryEmit(fps)
         }
@@ -78,11 +76,10 @@ class FpsInteractor @Inject constructor(private val context: Context) {
     }
 
     fun start() {
-        val taskId = taskManager?.focusedRootTaskInfo?.taskId ?: return
-        wm.registerTaskFpsCallback(taskId, Runnable::run, fpsCallback)
+        Bridges.withSystem(Unit) { it.registerFpsListener(fpsCallback) }
     }
 
     fun dispose() {
-        wm.unregisterTaskFpsCallback(fpsCallback)
+        Bridges.withSystem(Unit) { it.unregisterFpsListener(fpsCallback) }
     }
 }

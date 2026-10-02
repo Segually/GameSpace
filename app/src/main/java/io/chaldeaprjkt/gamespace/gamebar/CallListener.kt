@@ -27,7 +27,6 @@ import android.graphics.BitmapFactory
 import android.graphics.PixelFormat
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
-import android.media.AudioSystem
 import android.net.Uri
 import android.provider.ContactsContract
 import android.telecom.TelecomManager
@@ -58,7 +57,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
-import com.android.axion.compose.lifecycle.repeatWhenAttached
+import io.chaldeaprjkt.gamespace.utils.repeatWhenAttached
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ServiceScoped
 import io.chaldeaprjkt.gamespace.R
@@ -151,11 +150,11 @@ class CallListener @Inject constructor(
 
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         if (isHeadsetPluggedIn()) {
-            audioManager.isSpeakerphoneOn = false
-            AudioSystem.setForceUse(AudioSystem.FOR_COMMUNICATION, AudioSystem.FORCE_NONE)
+            audioManager.clearCommunicationDevice()
         } else {
-            audioManager.isSpeakerphoneOn = true
-            AudioSystem.setForceUse(AudioSystem.FOR_COMMUNICATION, AudioSystem.FORCE_SPEAKER)
+            audioManager.availableCommunicationDevices
+                .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                ?.let { audioManager.setCommunicationDevice(it) }
         }
     }
 
@@ -165,7 +164,7 @@ class CallListener @Inject constructor(
         if (callsMode == 0 || callsMode == 2) return
 
         audioManager.mode = previousAudioMode
-        AudioSystem.setForceUse(AudioSystem.FOR_COMMUNICATION, AudioSystem.FORCE_NONE)
+        audioManager.clearCommunicationDevice()
     }
 
     private fun isHeadsetPluggedIn(): Boolean {

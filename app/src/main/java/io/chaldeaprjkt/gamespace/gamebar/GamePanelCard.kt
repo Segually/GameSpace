@@ -25,12 +25,14 @@ import android.graphics.Rect
 import android.graphics.drawable.*
 import android.net.Uri
 import android.os.BatteryManager
-import android.os.UserHandle
 import android.provider.Settings
 import android.util.Log
 import android.view.WindowManager
 import android.widget.Toast
-import com.android.settingslib.display.BrightnessUtils.*
+import io.chaldeaprjkt.gamespace.utils.BrightnessUtils.GAMMA_SPACE_MAX
+import io.chaldeaprjkt.gamespace.utils.BrightnessUtils.GAMMA_SPACE_MIN
+import io.chaldeaprjkt.gamespace.utils.BrightnessUtils.convertGammaToLinearFloat
+import io.chaldeaprjkt.gamespace.utils.BrightnessUtils.convertLinearToGammaFloat
 import androidx.collection.LruCache
 import androidx.core.graphics.drawable.*
 import androidx.compose.*
@@ -70,6 +72,7 @@ import androidx.compose.ui.unit.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.input.pointer.*
 import io.chaldeaprjkt.gamespace.R
+import io.chaldeaprjkt.gamespace.bridge.Bridges
 import io.chaldeaprjkt.gamespace.data.SystemSettings
 import io.chaldeaprjkt.gamespace.gamebar.brightness.*
 import io.chaldeaprjkt.gamespace.gamebar.fps.*
@@ -1261,24 +1264,13 @@ fun QuickStartAppIcon(
 }
 
 fun launchAppInFreeformMode(context: Context, packageName: String) {
-    try {
-        val packageManager = context.packageManager
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-
-        if (launchIntent != null) {
-            val activityName = launchIntent.component?.className
-
-            val freeformIntent = Intent("com.libremobileos.freeform.START_FREEFORM").apply {
-                setPackage("com.libremobileos.freeform")
-                putExtra("packageName", packageName)
-                putExtra("activityName", activityName)
-                putExtra("userId", UserHandle.myUserId())
-            }
-
-            context.sendBroadcast(freeformIntent)
+    val launched = Bridges.withSystem(false) { it.launchFreeform(packageName) }
+    if (!launched) {
+        context.packageManager.getLaunchIntentForPackage(packageName)?.let {
+            it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching { context.startActivity(it) }
+                .onFailure { e -> Log.e(TAG, "Failed to launch $packageName", e) }
         }
-    } catch (e: Exception) {
-        Log.e(TAG, "Failed to launch in freeform", e)
     }
 }
 

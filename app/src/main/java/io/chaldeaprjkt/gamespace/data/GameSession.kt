@@ -61,8 +61,7 @@ class GameSession @Inject constructor(
             statusbarBrightness = systemSettings.statusbarBrightness,
             headsup = systemSettings.headsup,
             threeScreenshot = systemSettings.threeScreenshot,
-            ringerMode = audioManager.ringerModeInternal,
-            pulseBassHaptics = systemSettings.pulseBassHaptics,
+            ringerMode = audioManager.ringerMode,
         )
         if (appSettings.noAutoBrightness) {
             systemSettings.autoBrightness = false
@@ -75,13 +74,13 @@ class GameSession @Inject constructor(
             systemSettings.threeScreenshot = 0
         }
         if (appSettings.ringerMode != 3) {
-            audioManager.ringerModeInternal = appSettings.ringerMode
+            audioManager.ringerMode = appSettings.ringerMode
         }
         if (appSettings.stayAwake) {
             systemSettings.stayAwake = true
         }
-        if (appSettings.noPulseBassHaptics) {
-            systemSettings.pulseBassHaptics = 0
+        if (appSettings.bypassCharge) {
+            BypassCharging.setActive(true)
         }
     }
 
@@ -98,12 +97,12 @@ class GameSession @Inject constructor(
             systemSettings.threeScreenshot = orig.threeScreenshot
         }
         if (appSettings.ringerMode != 3) {
-            audioManager.ringerModeInternal = orig.ringerMode
-        }
-        if (appSettings.noPulseBassHaptics) {
-            systemSettings.pulseBassHaptics = orig.pulseBassHaptics
+            audioManager.ringerMode = orig.ringerMode
         }
         systemSettings.stayAwake = false
+        if (appSettings.bypassCharge) {
+            BypassCharging.setActive(false)
+        }
         state = null
     }
 

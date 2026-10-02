@@ -9,10 +9,10 @@ package io.chaldeaprjkt.gamespace.data
 import android.app.ActivityManager
 import android.content.Context
 import android.content.SharedPreferences
-import android.content.pm.PackageManager
 import android.os.Process
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.chaldeaprjkt.gamespace.R
+import io.chaldeaprjkt.gamespace.bridge.Bridges
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -80,13 +80,7 @@ class GameOptimizationManager @Inject constructor(
 
             if (cacheSize <= CACHE_THRESHOLD) return
 
-            val observerClass = Class.forName("android.content.pm.IPackageDataObserver")
-            val deleteCache = PackageManager::class.java.getMethod(
-                "deleteApplicationCacheFiles",
-                String::class.java,
-                observerClass
-            )
-            deleteCache.invoke(pm, packageName, null)
+            Bridges.withSystem(Unit) { it.trimAppCache(packageName) }
         } catch (e: Exception) {
             e.printStackTrace()
         }

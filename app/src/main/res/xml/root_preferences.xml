@@ -20,9 +20,14 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <com.android.settingslib.widget.IllustrationPreference
+    <io.chaldeaprjkt.gamespace.preferences.IllustrationPreference
         android:key="game_settings_illustration_video"
         app:lottie_rawRes="@raw/game_settings_illustration" />
+
+    <PreferenceCategory
+        android:key="status"
+        android:title="@string/status_title"
+        app:isPreferenceVisible="false" />
 
     <PreferenceCategory
         android:key="game_optimization"
@@ -64,11 +69,6 @@
             android:summary="@string/danmaku_notification_mode_summary"
             android:defaultValue="true" />
 
-        <SwitchPreferenceCompat
-            android:key="gamespace_pulse_bass_haptics_disabled"
-            android:title="@string/pulse_bass_haptics_disabled_title"
-            android:summary="@string/pulse_bass_haptics_disabled_summary"
-            android:defaultValue="true" />
 
         <SwitchPreferenceCompat
             android:key="gamespace_auto_dnd"
@@ -110,11 +110,13 @@
             android:summary="@string/lock_gesture_summary"
             android:defaultValue="false" />
 
-        <com.crdroid.settings.preferences.SystemSettingSwitchPreference
+
+        <SwitchPreferenceCompat
             android:key="bypass_charge_enabled"
             android:title="@string/bypass_charge_enabled_title"
             android:summary="@string/bypass_charge_enabled_summary"
-            android:defaultValue="false" />
+            android:defaultValue="false"
+            app:isPreferenceVisible="false" />
 
         <com.crdroid.settings.preferences.CustomSeekBarPreference
             android:key="gamespace_icon_idle_alpha"

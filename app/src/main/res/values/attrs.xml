@@ -24,4 +24,8 @@
         <attr name="units" format="string|reference" />
         <attr name="continuousUpdates" format="boolean" />
     </declare-styleable>
+
+    <declare-styleable name="IllustrationPreference">
+        <attr name="lottie_rawRes" />
+    </declare-styleable>
 </resources>

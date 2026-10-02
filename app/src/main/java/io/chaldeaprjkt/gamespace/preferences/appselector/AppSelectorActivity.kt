@@ -18,24 +18,18 @@
 package io.chaldeaprjkt.gamespace.preferences.appselector
 
 import android.os.Bundle
-import com.android.settingslib.collapsingtoolbar.CollapsingToolbarBaseActivity
 import dagger.hilt.android.AndroidEntryPoint
+import io.chaldeaprjkt.gamespace.settings.BaseSettingsActivity
 import io.chaldeaprjkt.gamespace.R
 
-@AndroidEntryPoint(CollapsingToolbarBaseActivity::class)
+@AndroidEntryPoint(BaseSettingsActivity::class)
 class AppSelectorActivity : Hilt_AppSelectorActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setTitle(R.string.app_selector_label)
         if (savedInstanceState == null) {
-            supportFragmentManager
-                .beginTransaction()
-                .replace(
-                    com.android.settingslib.collapsingtoolbar.R.id.content_frame,
-                    AppSelectorFragment()
-                )
-                .commit()
+            showFragment(AppSelectorFragment())
         }
     }
 }

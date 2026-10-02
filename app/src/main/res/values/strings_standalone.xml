@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Strings added for the standalone (root + Xposed) build.
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <!-- Previously provided by SettingsLib -->
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Session foreground service -->
+    <string name="session_channel_name">Game session</string>
+    <string name="session_notification_title">Game Space is running</string>
+
+    <!-- Auto-detect (was a framework string in the ROM build) -->
+    <string name="game_auto_added">%1$s was added to Game Space</string>
+
+    <!-- Status / setup -->
+    <string name="status_title">Setup</string>
+    <string name="status_ok">Ready</string>
+    <string name="status_root_title">Root access</string>
+    <string name="status_root_summary_ok">Granted</string>
+    <string name="status_root_summary_missing">Not granted. Tap to request root access</string>
+    <string name="status_system_hook_title">System framework hook</string>
+    <string name="status_systemui_hook_title">System UI hook</string>
+    <string name="status_hook_ok">Active</string>
+    <string name="status_hook_missing">Inactive. Enable Game Space in your Xposed manager (scopes: System Framework, System UI) and reboot</string>
+    <string name="status_overlay_title">Display over other apps</string>
+    <string name="status_listener_title">Notification access</string>
+    <string name="status_listener_summary">Needed to show notifications as in-game danmaku</string>
+    <string name="status_dnd_title">Do Not Disturb access</string>
+    <string name="status_dnd_summary">Needed for automatic DND and ringer mode</string>
+    <string name="status_runtime_title">Calls, contacts and notifications</string>
+    <string name="status_runtime_summary">Needed for the in-game call overlay</string>
+    <string name="status_permission_missing">Not allowed. Tap to grant</string>
+    <string name="status_permission_ok">Allowed</string>
+</resources>

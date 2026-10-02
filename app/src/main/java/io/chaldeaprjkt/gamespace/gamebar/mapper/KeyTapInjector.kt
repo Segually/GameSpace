@@ -19,6 +19,7 @@ import android.content.Context
 import android.hardware.input.InputManager
 import android.os.SystemClock
 import android.view.InputDevice
+import android.view.InputEvent
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.WindowManager
@@ -106,12 +107,20 @@ class KeyTapInjector(context: Context, private val wm: WindowManager) {
             downTime, eventTime, action, 1,
             arrayOf(props), arrayOf(coords),
             0, 0, 1.0f, 1.0f,
-            -1, 0, InputDevice.SOURCE_TOUCHSCREEN, 0, 0
+            -1, 0, InputDevice.SOURCE_TOUCHSCREEN, 0
         )
         try {
-            inputManager.injectInputEvent(event, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC)
+            // @hide, needs INJECT_EVENTS: only works if the mapper is ever re-enabled
+            // and the permission is granted to the app.
+            InputManager::class.java
+                .getMethod("injectInputEvent", InputEvent::class.java, Int::class.javaPrimitiveType)
+                .invoke(inputManager, event, INJECT_INPUT_EVENT_MODE_ASYNC)
         } finally {
             event.recycle()
         }
+    }
+
+    private companion object {
+        const val INJECT_INPUT_EVENT_MODE_ASYNC = 0
     }
 }

@@ -15,7 +15,6 @@
  */
 package io.chaldeaprjkt.gamespace.gamebar.brightness
 
-import android.hardware.display.BrightnessInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject

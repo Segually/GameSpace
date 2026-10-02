@@ -48,7 +48,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,13 +55,16 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.android.compose.animation.scene.SceneTransitionLayout
-import com.android.compose.animation.scene.SwipeDetector
-import com.android.compose.animation.scene.rememberMutableSceneTransitionLayoutState
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import io.chaldeaprjkt.gamespace.R
 
 private const val PILL_WIDTH_DP = 36
@@ -95,16 +97,7 @@ fun GameBarView(
     onDragUpdate: (Int, Int) -> Unit,
     onDragEnd: (Int, Int) -> Unit,
 ) {
-    val state = rememberMutableSceneTransitionLayoutState(
-        initialScene = GameBarScenes.Pill,
-        transitions = GameBarTransitions,
-    )
-    val scope = rememberCoroutineScope()
-    val noSwipe = remember {
-        object : SwipeDetector {
-            override fun detectSwipe(change: PointerInputChange) = false
-        }
-    }
+    var verticalPillShown by remember { mutableStateOf(false) }
 
     val animatedPillAlpha by animateFloatAsState(
         targetValue = if (isIdle) idleAlpha else 1f,
@@ -113,7 +106,7 @@ fun GameBarView(
 
     LaunchedEffect(collapseRequestKey) {
         if (collapseRequestKey > 0) {
-            state.setTargetScene(GameBarScenes.Pill, scope)
+            verticalPillShown = false
             onCollapsed()
         }
     }
@@ -172,11 +165,20 @@ fun GameBarView(
     val barTopDp = with(density) { barTopPx.toDp() }
 
     val sceneContent = @Composable {
-        SceneTransitionLayout(
-            state = state,
-            swipeDetector = noSwipe,
-        ) {
-            scene(GameBarScenes.Pill) {
+        AnimatedContent(
+            targetState = verticalPillShown,
+            transitionSpec = {
+                if (targetState) {
+                    fadeIn(tween(135, delayMillis = 45, easing = FastOutSlowInEasing)) togetherWith
+                        fadeOut(tween(45, easing = FastOutSlowInEasing))
+                } else {
+                    fadeIn(tween(105, delayMillis = 45, easing = FastOutLinearInEasing)) togetherWith
+                        fadeOut(tween(60, easing = FastOutLinearInEasing))
+                }
+            },
+            label = "gamebarPill",
+        ) { vertical ->
+            if (!vertical) {
                 PillTab(
                     dockedOnLeft = dockedOnLeft,
                     showFps = showFps,
@@ -184,13 +186,11 @@ fun GameBarView(
                     idleAlpha = animatedPillAlpha,
                     pointerModifier = pointerModifier,
                     onTap = {
-                        state.setTargetScene(GameBarScenes.VerticalPill, scope)
+                        verticalPillShown = true
                         onExpanded()
                     },
-                    modifier = Modifier.element(GameBarElements.PillContent),
                 )
-            }
-            scene(GameBarScenes.VerticalPill) {
+            } else {
                 VerticalPill(
                     isLocked = isLocked,
                     mapperEnabled = mapperEnabled,
@@ -200,7 +200,6 @@ fun GameBarView(
                     onShowPanel = onShowPanel,
                     onToggleLock = onToggleLock,
                     onMapControls = onMapControls,
-                    modifier = Modifier.element(GameBarElements.VerticalPillContent),
                 )
             }
         }
@@ -216,7 +215,7 @@ fun GameBarView(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                     ) {
-                        state.setTargetScene(GameBarScenes.Pill, scope)
+                        verticalPillShown = false
                         onCollapsed()
                     },
             )

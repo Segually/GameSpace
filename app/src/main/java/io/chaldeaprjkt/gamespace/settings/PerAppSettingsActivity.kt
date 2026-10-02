@@ -19,11 +19,10 @@ package io.chaldeaprjkt.gamespace.settings
 
 import android.os.Bundle
 import androidx.activity.viewModels
-import com.android.settingslib.collapsingtoolbar.CollapsingToolbarBaseActivity
 import dagger.hilt.android.AndroidEntryPoint
 import io.chaldeaprjkt.gamespace.ui.viewmodel.PerAppSettingsViewModel
 
-@AndroidEntryPoint(CollapsingToolbarBaseActivity::class)
+@AndroidEntryPoint(BaseSettingsActivity::class)
 class PerAppSettingsActivity : Hilt_PerAppSettingsActivity() {
 
     private val viewModel: PerAppSettingsViewModel by viewModels()
@@ -39,13 +38,7 @@ class PerAppSettingsActivity : Hilt_PerAppSettingsActivity() {
         viewModel.loadGame(packageName)
 
         if (savedInstanceState == null) {
-            supportFragmentManager
-                .beginTransaction()
-                .replace(
-                    com.android.settingslib.collapsingtoolbar.R.id.content_frame,
-                    PerAppSettingsFragment()
-                )
-                .commit()
+            showFragment(PerAppSettingsFragment())
         }
     }
 

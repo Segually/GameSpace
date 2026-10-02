@@ -16,22 +16,22 @@
 package io.chaldeaprjkt.gamespace.settings
 
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
-import android.os.SystemProperties
-import android.os.Vibrator
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.SwitchPreferenceCompat
 import androidx.preference.ListPreference
 
-import com.android.settingslib.widget.SettingsBasePreferenceFragment
+import androidx.preference.PreferenceFragmentCompat
 
 import dagger.hilt.android.AndroidEntryPoint
 
 import io.chaldeaprjkt.gamespace.R
+import io.chaldeaprjkt.gamespace.data.AppSettings
+import io.chaldeaprjkt.gamespace.data.BypassCharging
 import io.chaldeaprjkt.gamespace.data.GameOptimizationManager
 import io.chaldeaprjkt.gamespace.preferences.AppListPreferences
 import io.chaldeaprjkt.gamespace.preferences.QuickStartAppPreference
@@ -39,13 +39,17 @@ import io.chaldeaprjkt.gamespace.preferences.QuickStartAppPreferenceDialogFragme
 import io.chaldeaprjkt.gamespace.preferences.appselector.AppSelectorActivity
 
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-@AndroidEntryPoint(SettingsBasePreferenceFragment::class)
+@AndroidEntryPoint(PreferenceFragmentCompat::class)
 class SettingsFragment : Hilt_SettingsFragment(),
     QuickStartAppPreferenceDialogFragment.QuickStartAppListener,
     Preference.OnPreferenceChangeListener {
 
     private var apps: AppListPreferences? = null
+    private val status = StatusPreferences(this)
 
     @Inject
     lateinit var gameOptimization: GameOptimizationManager
@@ -66,32 +70,18 @@ class SettingsFragment : Hilt_SettingsFragment(),
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.root_preferences, rootKey)
-        updatePreferences()
-    }
-
-    private fun hasVibrator(): Boolean {
-        val vibrator = context?.getSystemService(Vibrator::class.java)
-        return vibrator?.hasVibrator() == true
-    }
-
-    private fun updatePreferences() {
-        val isBypassSupported =
-            Build.MANUFACTURER.equals("Google", ignoreCase = true) ||
-            SystemProperties.getBoolean("persist.sys.battery_bypass_supported", false)
-
-        if (!isBypassSupported) {
-            findPreference<PreferenceCategory>("in_game_preferences")
-                ?.removePreference(findPreference("bypass_charge_enabled")!!)
-        }
-
-        if (!hasVibrator()) {
-            findPreference<PreferenceCategory>("in_game_preferences")
-                ?.removePreference(findPreference("gamespace_pulse_bass_haptics_disabled")!!)
-        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        findPreference<PreferenceCategory>("status")?.let { status.attach(it) }
+
+        findPreference<Preference>(AppSettings.KEY_BYPASS_CHARGE)?.let { pref ->
+            viewLifecycleOwner.lifecycleScope.launch {
+                pref.isVisible = withContext(Dispatchers.IO) { BypassCharging.isSupported() }
+            }
+        }
 
         apps = findPreference("gamespace_game_list")
         apps?.onRegisteredAppClick { pkg ->
@@ -123,6 +113,12 @@ class SettingsFragment : Hilt_SettingsFragment(),
     override fun onResume() {
         super.onResume()
         apps?.updateAppList()
+        status.refresh()
+    }
+
+    override fun onDestroyView() {
+        status.detach()
+        super.onDestroyView()
     }
 
     override fun onDisplayPreferenceDialog(preference: Preference) {

@@ -26,15 +26,15 @@ import androidx.fragment.app.activityViewModels
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 
-import com.android.settingslib.widget.LayoutPreference
-import com.android.settingslib.widget.SettingsBasePreferenceFragment
+import io.chaldeaprjkt.gamespace.preferences.LayoutPreference
+import androidx.preference.PreferenceFragmentCompat
 
 import dagger.hilt.android.AndroidEntryPoint
 
 import io.chaldeaprjkt.gamespace.R
 import io.chaldeaprjkt.gamespace.ui.viewmodel.PerAppSettingsViewModel
 
-@AndroidEntryPoint(SettingsBasePreferenceFragment::class)
+@AndroidEntryPoint(PreferenceFragmentCompat::class)
 class PerAppSettingsFragment : Hilt_PerAppSettingsFragment(),
     Preference.OnPreferenceChangeListener {
 
