@@ -42,6 +42,13 @@ class GameListCache(private val context: Context, private val handler: Handler) 
         private set
 
     @Volatile
+    var switchAction: String = BridgeContract.SWITCH_SYSTEM_WIDE
+
+    /** Last known hardware switch position (persisted by the app); null if never flipped. */
+    @Volatile
+    var switchOn: Boolean? = null
+
+    @Volatile
     private var loaded = false
     private var lastAttempt = 0L
 
@@ -62,6 +69,8 @@ class GameListCache(private val context: Context, private val handler: Handler) 
             )
         }.onFailure { XLog.w("Cannot observe game list", it) }
     }
+
+    val isLoaded get() = loaded
 
     fun isGame(packageName: String): Boolean {
         ensureLoaded()
@@ -96,6 +105,11 @@ class GameListCache(private val context: Context, private val handler: Handler) 
             .toMap()
         denied = state.getStringArray(BridgeContract.KEY_DENIED_LIST)?.toSet() ?: emptySet()
         autoDetect = state.getBoolean(BridgeContract.KEY_AUTO_DETECT, true)
+        switchAction = state.getString(BridgeContract.KEY_SWITCH_ACTION)
+            ?: BridgeContract.SWITCH_SYSTEM_WIDE
+        switchOn = if (state.containsKey(BridgeContract.KEY_SWITCH_ON)) {
+            state.getBoolean(BridgeContract.KEY_SWITCH_ON)
+        } else null
         loaded = true
     }
 

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <string-array name="switch_action_entries">
+        <item>@string/switch_action_system_wide</item>
+        <item>@string/switch_action_current_app</item>
+        <item>@string/switch_action_master</item>
+        <item>@string/switch_action_none</item>
+    </string-array>
+
+    <!-- Must match BridgeContract.SWITCH_* -->
+    <string-array name="switch_action_values" translatable="false">
+        <item>system_wide</item>
+        <item>current_app</item>
+        <item>master</item>
+        <item>none</item>
+    </string-array>
+</resources>

@@ -40,6 +40,7 @@ import io.chaldeaprjkt.gamespace.bridge.BridgeContract
 import io.chaldeaprjkt.gamespace.bridge.Bridges
 import io.chaldeaprjkt.gamespace.data.AppSettings
 import io.chaldeaprjkt.gamespace.data.GameSession
+import io.chaldeaprjkt.gamespace.data.PerformanceMode
 import io.chaldeaprjkt.gamespace.data.SystemSettings
 import io.chaldeaprjkt.gamespace.gamebar.brightness.BrightnessInteractor
 import io.chaldeaprjkt.gamespace.gamebar.fps.FpsInteractor
@@ -69,6 +70,7 @@ class SessionService : Hilt_SessionService() {
     private lateinit var mapperController: MapperController
     private lateinit var platform: PlatformClient
 
+    private var performanceActive = false
     private var dndEnabledByUs = false
     private var previousDndFilter = NotificationManager.INTERRUPTION_FILTER_ALL
 
@@ -124,7 +126,10 @@ class SessionService : Hilt_SessionService() {
         if (intent?.action == ACTION_START) {
             val packageName = intent.getStringExtra(EXTRA_PACKAGE_NAME)
             if (packageName != null) {
-                startGameSession(packageName)
+                startGameSession(
+                    packageName,
+                    intent.getBooleanExtra(BridgeContract.EXTRA_PERFORMANCE, false)
+                )
             } else {
                 Log.e(TAG, "No package name provided, stopping")
                 stopSelf()
@@ -138,7 +143,7 @@ class SessionService : Hilt_SessionService() {
         sidebar.onConfigurationChanged(newConfig)
     }
 
-    private fun startGameSession(packageName: String) {
+    private fun startGameSession(packageName: String, performance: Boolean) {
         if (currentPackage == packageName) {
             Log.d(TAG, "Session already active for $packageName")
             return
@@ -153,9 +158,19 @@ class SessionService : Hilt_SessionService() {
         
         session.unregister()
         session.register(packageName)
-        
-        applyGameModeConfig(packageName)
-        
+
+        // The system-wide session (hardware gaming switch) isn't tied to one game.
+        if (packageName == BridgeContract.GLOBAL_SESSION) {
+            gameModeUtils.activeGame = null
+        } else {
+            applyGameModeConfig(packageName)
+        }
+
+        if (performance && appSettings.performanceBoost) {
+            PerformanceMode.setActive(true)
+            performanceActive = true
+        }
+
         applyAutoDnd()
 
         sidebar.onGameStart(packageName)
@@ -168,6 +183,10 @@ class SessionService : Hilt_SessionService() {
 
         sidebar.onGameLeave()
         session.unregister()
+        if (performanceActive) {
+            PerformanceMode.setActive(false)
+            performanceActive = false
+        }
         callListener.destroy()
         restoreAutoDnd()
 

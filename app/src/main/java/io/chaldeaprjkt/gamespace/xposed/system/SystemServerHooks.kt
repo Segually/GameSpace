@@ -26,6 +26,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Process
+import android.view.KeyEvent
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import io.chaldeaprjkt.gamespace.bridge.BridgeContract
@@ -41,11 +42,14 @@ import io.chaldeaprjkt.gamespace.xposed.XLog
  *  - ActivityTaskSupervisor#removeTask(Task, boolean, boolean, String, int, int, String)
  *  - KeyguardController#setKeyguardShown(int, boolean, boolean)
  *  - DisplayPolicy#requestTransientBars(WindowState, boolean)              gesture lock
+ *  - PhoneWindowManager#interceptKeyBeforeQueueing(KeyEvent, int)          gaming switch
  */
 object SystemServerHooks {
 
     private const val WM = "com.android.server.wm"
     private const val WINDOWING_MODE_FREEFORM = 5
+    private const val SCAN_SWITCH_ON = 249
+    private const val SCAN_SWITCH_OFF = 250
 
     private var dispatcher: SessionDispatcher? = null
     private var activityTaskManager: Any? = null
@@ -107,6 +111,27 @@ object SystemServerHooks {
                 if (param.args[0] as Int != 0) return@after
                 val showing = param.args[1] as Boolean
                 dispatcher?.post { onKeyguardChanged(showing) }
+            }
+        )
+
+        // Lenovo TB-9707F gaming switch: the kernel's "game_mode_switcher" input device sends
+        // scan code 249 (on) / 250 (off). GSIs have no key layout for it, so it arrives as
+        // KEYCODE_UNKNOWN and would otherwise be dropped.
+        XLog.hook(
+            cl, "com.android.server.policy.PhoneWindowManager", "interceptKeyBeforeQueueing",
+            KeyEvent::class.java, Int::class.java,
+            XLog.before { param ->
+                val event = param.args[0] as KeyEvent
+                if (event.keyCode != KeyEvent.KEYCODE_UNKNOWN) return@before
+                val on = when (event.scanCode) {
+                    SCAN_SWITCH_ON -> true
+                    SCAN_SWITCH_OFF -> false
+                    else -> return@before
+                }
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                    dispatcher?.post { onGameSwitch(on) }
+                }
+                param.result = 0 // consumed: don't pass to apps
             }
         )
 

@@ -22,6 +22,7 @@ import dagger.hilt.android.HiltAndroidApp
 import io.chaldeaprjkt.gamespace.bridge.Bridges
 import io.chaldeaprjkt.gamespace.data.AppSettings
 import io.chaldeaprjkt.gamespace.data.BypassCharging
+import io.chaldeaprjkt.gamespace.data.PerformanceMode
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 @HiltAndroidApp(Application::class)
@@ -36,6 +37,8 @@ class GameSpace : Hilt_GameSpace() {
         HiddenApiBypass.addHiddenApiExemptions("")
         Bridges.request(this)
         // If a previous process died mid-session, don't leave charging paused.
-        if (AppSettings(this).bypassCharge) BypassCharging.setActive(false)
+        val settings = AppSettings(this)
+        if (settings.bypassCharge) BypassCharging.setActive(false)
+        if (settings.performanceBoost) PerformanceMode.setActive(false)
     }
 }

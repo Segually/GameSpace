@@ -25,6 +25,8 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
+import android.os.VibrationEffect
+import android.os.VibratorManager
 import android.util.Log
 import android.widget.Toast
 import io.chaldeaprjkt.gamespace.R
@@ -81,8 +83,20 @@ class GameSpaceProvider : ContentProvider() {
                             BridgeContract.KEY_DENIED_LIST, store.deniedList.toTypedArray()
                         )
                         putBoolean(BridgeContract.KEY_AUTO_DETECT, store.autoDetect)
+                        putString(BridgeContract.KEY_SWITCH_ACTION, store.switchAction)
+                        store.switchOn?.let { putBoolean(BridgeContract.KEY_SWITCH_ON, it) }
                     }
                 }
+            }
+            BridgeContract.METHOD_SWITCH_CHANGED -> {
+                require(isSystem) { "$method from uid $uid" }
+                val on = arg == "1"
+                val action = withCleanIdentity {
+                    store.switchOn = on
+                    store.switchAction
+                }
+                if (action != BridgeContract.SWITCH_NONE) notifySwitch(on, action)
+                Bundle().apply { putString(BridgeContract.KEY_SWITCH_ACTION, action) }
             }
             BridgeContract.METHOD_ADD_GAME, BridgeContract.METHOD_REMOVE_GAME -> {
                 require(isSystem || isSelf) { "$method from uid $uid" }
@@ -97,6 +111,30 @@ class GameSpaceProvider : ContentProvider() {
             else -> {
                 Log.w(TAG, "Unknown method $method from uid $uid")
                 null
+            }
+        }
+    }
+
+    /** Toast + haptic tick for the hardware gaming switch. */
+    private fun notifySwitch(on: Boolean, action: String) {
+        val ctx = context ?: return
+        val text = ctx.getString(
+            when (action) {
+                BridgeContract.SWITCH_CURRENT_APP ->
+                    if (on) R.string.switch_toast_app_on else R.string.switch_toast_app_off
+                BridgeContract.SWITCH_MASTER ->
+                    if (on) R.string.switch_toast_master_on else R.string.switch_toast_master_off
+                else -> if (on) R.string.switch_toast_system_on else R.string.switch_toast_system_off
+            }
+        )
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(ctx, text, Toast.LENGTH_SHORT).show()
+            runCatching {
+                ctx.getSystemService(VibratorManager::class.java).defaultVibrator.vibrate(
+                    VibrationEffect.createPredefined(
+                        if (on) VibrationEffect.EFFECT_HEAVY_CLICK else VibrationEffect.EFFECT_TICK
+                    )
+                )
             }
         }
     }

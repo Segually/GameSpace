@@ -102,6 +102,10 @@ class AppSettings @Inject constructor(private val context: Context) {
         get() = db.getBoolean(KEY_BYPASS_CHARGE, false)
         set(value) = db.edit().putBoolean(KEY_BYPASS_CHARGE, value).apply()
 
+    var performanceBoost
+        get() = db.getBoolean(KEY_PERFORMANCE_BOOST, true)
+        set(value) = db.edit().putBoolean(KEY_PERFORMANCE_BOOST, value).apply()
+
     var stayAwake
         get() = db.getBoolean(KEY_STAY_AWAKE, false)
         set(value) = db.edit().putBoolean(KEY_STAY_AWAKE, value).apply()
@@ -115,6 +119,8 @@ class AppSettings @Inject constructor(private val context: Context) {
         const val KEY_RINGER_MODE = "gamespace_ringer_mode"
         const val KEY_LOCK_GESTURE = "gamespace_lock_gesture"
         const val KEY_BYPASS_CHARGE = "bypass_charge_enabled"
+        const val KEY_PERFORMANCE_BOOST = "gamespace_performance_boost"
+        const val KEY_SWITCH_ACTION = "gamespace_switch_action"
         const val KEY_MENU_OPACITY = "gamespace_menu_opacity"
         const val KEY_TILE_ORDER = "tile_order"
         const val KEY_BRIGHTNESS_ENABLED = "brightness_enabled"

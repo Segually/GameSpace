@@ -56,6 +56,19 @@ class GameStore(context: Context) {
         get() = prefs.getBoolean(KEY_AUTO_DETECT, true)
         set(value) = commitAndNotify { putBoolean(KEY_AUTO_DETECT, value) }
 
+    var switchAction: String
+        get() = prefs.getString(KEY_SWITCH_ACTION, null) ?: BridgeContract.SWITCH_SYSTEM_WIDE
+        set(value) = commitAndNotify { putString(KEY_SWITCH_ACTION, value) }
+
+    /** Last known position of the hardware switch; null until it's first flipped. */
+    var switchOn: Boolean?
+        get() = if (prefs.contains(KEY_SWITCH_ON)) prefs.getBoolean(KEY_SWITCH_ON, false) else null
+        set(value) {
+            prefs.edit().apply {
+                if (value == null) remove(KEY_SWITCH_ON) else putBoolean(KEY_SWITCH_ON, value)
+            }.commit()
+        }
+
     fun isGame(packageName: String) = games.any { it.packageName == packageName }
 
     /** Used by auto-detect: adds in performance mode, like GameListManager did. */
@@ -82,5 +95,7 @@ class GameStore(context: Context) {
         private const val KEY_GAME_LIST = "game_list"
         private const val KEY_DENIED_LIST = "denied_list"
         private const val KEY_AUTO_DETECT = "auto_detect"
+        private const val KEY_SWITCH_ACTION = "switch_action"
+        private const val KEY_SWITCH_ON = "switch_on"
     }
 }

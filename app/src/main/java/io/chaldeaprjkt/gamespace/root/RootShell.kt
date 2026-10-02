@@ -47,7 +47,11 @@ object RootShell {
     }
 
     fun runAsync(vararg commands: String) {
-        if (isGrantedCached()) Shell.cmd(*commands).submit()
+        Shell.cmd(*commands).submit { result ->
+            if (!result.isSuccess) {
+                Log.w(TAG, "Failed (${result.code}): ${commands.joinToString("; ")} -> ${result.err}")
+            }
+        }
     }
 
     /** Single-quote [value] for safe use as one shell argument. */

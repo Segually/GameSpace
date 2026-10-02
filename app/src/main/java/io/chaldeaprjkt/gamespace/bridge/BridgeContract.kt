@@ -35,6 +35,8 @@ object BridgeContract {
     const val METHOD_GET_STATE = "get_state"
     const val METHOD_ADD_GAME = "add_game"
     const val METHOD_REMOVE_GAME = "remove_game"
+    /** system_server -> app: the hardware gaming switch moved (arg "1"/"0"); returns KEY_SWITCH_ACTION. */
+    const val METHOD_SWITCH_CHANGED = "switch_changed"
 
     // Bundle keys
     const val KEY_BINDER = "binder"
@@ -42,6 +44,17 @@ object BridgeContract {
     const val KEY_DENIED_LIST = "denied_list"
     const val KEY_AUTO_DETECT = "auto_detect"
     const val KEY_RESULT = "result"
+    const val KEY_SWITCH_ACTION = "switch_action"
+    const val KEY_SWITCH_ON = "switch_on"
+
+    // What the hardware gaming switch (e.g. Lenovo TB-9707F) does
+    const val SWITCH_SYSTEM_WIDE = "system_wide"
+    const val SWITCH_CURRENT_APP = "current_app"
+    const val SWITCH_MASTER = "master"
+    const val SWITCH_NONE = "none"
+
+    /** SessionService package name for a session that isn't tied to one game. */
+    const val GLOBAL_SESSION = "*system_wide*"
 
     /** Sent by the app when it needs the hooks to (re)attach their binders. */
     const val ACTION_REQUEST_BRIDGE = "$PACKAGE.action.REQUEST_BRIDGE"
@@ -51,6 +64,7 @@ object BridgeContract {
     const val EXTRA_PACKAGE_NAME = "package_name"
     const val EXTRA_SYSTEM_BRIDGE = "system_bridge"
     const val SESSION_SERVICE = "$PACKAGE.gamebar.SessionService"
+    const val EXTRA_PERFORMANCE = "performance"
 
     // Settings tables understood by ISystemBridge.putSetting
     const val TABLE_SYSTEM = "system"

@@ -17,6 +17,7 @@ package io.chaldeaprjkt.gamespace.settings
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.InputDevice
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
@@ -33,6 +34,7 @@ import io.chaldeaprjkt.gamespace.R
 import io.chaldeaprjkt.gamespace.data.AppSettings
 import io.chaldeaprjkt.gamespace.data.BypassCharging
 import io.chaldeaprjkt.gamespace.data.GameOptimizationManager
+import io.chaldeaprjkt.gamespace.data.GameStore
 import io.chaldeaprjkt.gamespace.preferences.AppListPreferences
 import io.chaldeaprjkt.gamespace.preferences.QuickStartAppPreference
 import io.chaldeaprjkt.gamespace.preferences.QuickStartAppPreferenceDialogFragment
@@ -77,6 +79,17 @@ class SettingsFragment : Hilt_SettingsFragment(),
 
         findPreference<PreferenceCategory>("status")?.let { status.attach(it) }
 
+        // Only devices with a hardware gaming switch (Lenovo TB-9707F) get this section.
+        findPreference<PreferenceCategory>("gaming_switch")?.isVisible = hasGamingSwitch()
+        findPreference<ListPreference>(AppSettings.KEY_SWITCH_ACTION)?.apply {
+            val store = GameStore(requireContext())
+            value = store.switchAction
+            setOnPreferenceChangeListener { _, newValue ->
+                store.switchAction = newValue as String
+                true
+            }
+        }
+
         findPreference<Preference>(AppSettings.KEY_BYPASS_CHARGE)?.let { pref ->
             viewLifecycleOwner.lifecycleScope.launch {
                 pref.isVisible = withContext(Dispatchers.IO) { BypassCharging.isSupported() }
@@ -108,6 +121,10 @@ class SettingsFragment : Hilt_SettingsFragment(),
             isChecked = gameOptimization.isCacheManagementEnabled
             onPreferenceChangeListener = this@SettingsFragment
         }
+    }
+
+    private fun hasGamingSwitch() = InputDevice.getDeviceIds().any {
+        InputDevice.getDevice(it)?.name == GAMING_SWITCH_DEVICE
     }
 
     override fun onResume() {
@@ -152,5 +169,9 @@ class SettingsFragment : Hilt_SettingsFragment(),
             }
         }
         return false
+    }
+
+    private companion object {
+        const val GAMING_SWITCH_DEVICE = "game_mode_switcher"
     }
 }

@@ -15,6 +15,22 @@
     <!-- Auto-detect (was a framework string in the ROM build) -->
     <string name="game_auto_added">%1$s was added to Game Space</string>
 
+    <!-- Hardware gaming switch -->
+    <string name="switch_category_title">Gaming switch</string>
+    <string name="switch_action_title">When the gaming switch is on</string>
+    <string name="switch_action_system_wide">System-wide game mode</string>
+    <string name="switch_action_current_app">Game session for the current app</string>
+    <string name="switch_action_master">Enable Game Space (master switch)</string>
+    <string name="switch_action_none">Do nothing</string>
+    <string name="switch_toast_system_on">Game mode on</string>
+    <string name="switch_toast_system_off">Game mode off</string>
+    <string name="switch_toast_app_on">Game session started</string>
+    <string name="switch_toast_app_off">Game session ended</string>
+    <string name="switch_toast_master_on">Game Space enabled</string>
+    <string name="switch_toast_master_off">Game Space disabled</string>
+    <string name="performance_boost_title">Performance boost</string>
+    <string name="performance_boost_summary">Fixed performance mode and touch game mode during games that use the Performance game mode, and in system-wide game mode</string>
+
     <!-- Status / setup -->
     <string name="status_title">Setup</string>
     <string name="status_ok">Ready</string>

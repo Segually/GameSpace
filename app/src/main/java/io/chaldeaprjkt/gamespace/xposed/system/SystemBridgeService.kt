@@ -125,6 +125,15 @@ class SystemBridgeService(
         Unit
     }
 
+    /** For system_server's own use (system-wide mode): no caller check needed. */
+    fun applyGameMode(packageName: String, mode: Int) {
+        runCatching {
+            val gm = context.getSystemService(GameManager::class.java)
+            val available = XposedHelpers.callMethod(gm, "getAvailableGameModes", packageName) as IntArray
+            if (mode in available) XposedHelpers.callMethod(gm, "setGameMode", packageName, mode)
+        }.onFailure { XLog.w("applyGameMode($packageName)", it) }
+    }
+
     override fun getAvailableGameModes(packageName: String): IntArray = privileged {
         val gm = context.getSystemService(GameManager::class.java)
         XposedHelpers.callMethod(gm, "getAvailableGameModes", packageName) as IntArray

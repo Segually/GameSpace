@@ -48,6 +48,21 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        android:key="gaming_switch"
+        android:title="@string/switch_category_title"
+        app:isPreferenceVisible="false">
+
+        <ListPreference
+            android:key="gamespace_switch_action"
+            android:title="@string/switch_action_title"
+            android:summary="%s"
+            android:persistent="false"
+            android:entries="@array/switch_action_entries"
+            android:entryValues="@array/switch_action_values" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
         android:key="in_game_preferences"
         android:title="@string/in_game_preferences_title">
 
@@ -110,6 +125,12 @@
             android:summary="@string/lock_gesture_summary"
             android:defaultValue="false" />
 
+
+        <SwitchPreferenceCompat
+            android:key="gamespace_performance_boost"
+            android:title="@string/performance_boost_title"
+            android:summary="@string/performance_boost_summary"
+            android:defaultValue="true" />
 
         <SwitchPreferenceCompat
             android:key="bypass_charge_enabled"
